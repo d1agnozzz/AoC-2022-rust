@@ -8,23 +8,23 @@ enum Choice {
 }
 
 fn round(opponent: Choice, yours: Choice) -> usize {
-    return match opponent {
+    match opponent {
         Choice::Rock(_) => match yours {
             Choice::Rock(v) => 3 + v,
             Choice::Paper(v) => 6 + v,
-            Choice::Sciscors(v) => 0 + v,
+            Choice::Sciscors(v) => v,
         },
         Choice::Paper(_) => match yours {
-            Choice::Rock(v) => 0 + v,
+            Choice::Rock(v) => v,
             Choice::Paper(v) => 3 + v,
             Choice::Sciscors(v) => 6 + v,
         },
         Choice::Sciscors(_) => match yours {
             Choice::Rock(v) => 6 + v,
-            Choice::Paper(v) => 0 + v,
+            Choice::Paper(v) => v,
             Choice::Sciscors(v) => 3 + v,
         },
-    };
+    }
 }
 
 fn main() {
@@ -33,44 +33,44 @@ fn main() {
     let sciscors = Choice::Sciscors(3);
 
     let contents = fs::read_to_string("./input.txt").expect("Couldn't read from a file");
-    let lines = contents.split_terminator("\n");
+    let lines = contents.split_terminator('\n');
 
     let mut score_p1: usize = 0;
     let mut score_p2: usize = 0;
     for line in lines {
-        let splited: Vec<&str> = line.split_terminator(" ").collect();
+        let splited: Vec<&str> = line.split_terminator(' ').collect();
 
-        let opponents_choice = match splited[0].chars().nth(0).unwrap() {
-            'A' => rock.clone(),
-            'B' => paper.clone(),
-            'C' => sciscors.clone(),
+        let opponents_choice = match splited[0].chars().next().unwrap() {
+            'A' => rock,
+            'B' => paper,
+            'C' => sciscors,
             _ => {
                 panic!("Couldn't match opponent's letter");
             }
         };
-        let your_choice_p1 = match splited[1].chars().nth(0).unwrap() {
-            'X' => rock.clone(),
-            'Y' => paper.clone(),
-            'Z' => sciscors.clone(),
+        let your_choice_p1 = match splited[1].chars().next().unwrap() {
+            'X' => rock,
+            'Y' => paper,
+            'Z' => sciscors,
             _ => {
                 panic!("Couldn't match your letter");
             }
         };
-        let your_choixe_p2 = match splited[1].chars().nth(0).unwrap() {
+        let your_choixe_p2 = match splited[1].chars().next().unwrap() {
             'X' => match opponents_choice {
-                Choice::Rock(_) => sciscors.clone(),
-                Choice::Paper(_) => rock.clone(),
-                Choice::Sciscors(_) => paper.clone(),
+                Choice::Rock(_) => sciscors,
+                Choice::Paper(_) => rock,
+                Choice::Sciscors(_) => paper,
             },
             'Y' => match opponents_choice {
-                Choice::Rock(_) => rock.clone(),
-                Choice::Paper(_) => paper.clone(),
-                Choice::Sciscors(_) => sciscors.clone(),
+                Choice::Rock(_) => rock,
+                Choice::Paper(_) => paper,
+                Choice::Sciscors(_) => sciscors,
             },
             'Z' => match opponents_choice {
-                Choice::Rock(_) => paper.clone(),
-                Choice::Paper(_) => sciscors.clone(),
-                Choice::Sciscors(_) => rock.clone(),
+                Choice::Rock(_) => paper,
+                Choice::Paper(_) => sciscors,
+                Choice::Sciscors(_) => rock,
             },
             _ => {
                 panic!("Couldn't match your letter")

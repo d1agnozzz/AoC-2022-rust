@@ -1,18 +1,10 @@
 use std::fs;
 
 #[derive(Copy, Clone)]
+#[derive(Default)]
 struct Elf {
     number: usize,
     calories: usize,
-}
-
-impl Default for Elf {
-    fn default() -> Self {
-        Elf {
-            number: 0,
-            calories: 0,
-        }
-    }
 }
 
 fn main() {
