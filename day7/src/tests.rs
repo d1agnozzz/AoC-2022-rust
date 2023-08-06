@@ -1,3 +1,5 @@
+use std::fmt::format;
+
 use super::*;
 
 use super::parsers::*;
@@ -6,13 +8,13 @@ fn test_data() -> &'static str {
     include_str!("../example.txt")
 }
 
-fn test_cd(i: &str) -> (&str, &str) {
+fn test_cd_parse(i: &str) -> (&str, &str) {
     let (i, cmd) = parse_cmd_line(i).unwrap();
     let Command::Cd { name } = cmd else { panic!() };
     (i, name)
 }
 
-fn test_ls(i: &str) -> (&str, &str) {
+fn test_ls_parse(i: &str) -> (&str, &str) {
     let (i, cmd) = parse_cmd_line(i).unwrap();
     let Command::Ls { contents } = cmd else { panic!()};
     (i, contents)
@@ -33,9 +35,9 @@ fn test_file_parse(i: &str) -> (&str, String, usize) {
 fn test_example_parse() {
     let i = test_data();
 
-    let (i, dir_root) = test_cd(i);
+    let (i, dir_root) = test_cd_parse(i);
     assert_eq!(dir_root, "/");
-    let (i, contents_root) = test_ls(i);
+    let (i, contents_root) = test_ls_parse(i);
     let (remain, dir_a) = test_dir_parse(contents_root);
     assert_eq!(dir_a, "a");
     let (remain, file_b_name, file_b_size) = test_file_parse(remain);
@@ -46,14 +48,14 @@ fn test_example_parse() {
     assert_eq!(file_c_size, 8_504_156);
     let (remain, dir_d) = test_dir_parse(remain);
     assert_eq!(dir_d, "d");
-    let (i, cd_a) = test_cd(i);
-    let (i, contents_a) = test_ls(i);
-    let (i, cd_e) = test_cd(i);
-    let (i, contents_e) = test_ls(i);
-    let (i, cd_parent1) = test_cd(i);
-    let (i, cd_parent2) = test_cd(i);
-    let (i, cd_d) = test_cd(i);
-    let (i, contents_d) = test_ls(i);
+    let (i, cd_a) = test_cd_parse(i);
+    let (i, contents_a) = test_ls_parse(i);
+    let (i, cd_e) = test_cd_parse(i);
+    let (i, contents_e) = test_ls_parse(i);
+    let (i, cd_parent1) = test_cd_parse(i);
+    let (i, cd_parent2) = test_cd_parse(i);
+    let (i, cd_d) = test_cd_parse(i);
+    let (i, contents_d) = test_ls_parse(i);
 
     assert_eq!(
         contents_root,
@@ -83,4 +85,52 @@ dir d"
 7214296 k
 "
     );
+}
+
+#[test]
+fn test() {
+    let str = "
+2557 g
+62596 h.lst";
+    let Ok((i, entry)) = parse_ls_entry(str) else {panic!("parse ls entry")};
+    dbg!(entry);
+    println!("test remain:\n{i}");
+    let (i, entry) = parse_ls_entry(i).unwrap();
+    dbg!(entry);
+    println!("test remain:\n{i}");
+}
+
+#[test]
+fn second_example_test() {
+    let test_data = test_data();
+
+    let mut parse_subject = test_data.clone();
+    let mut recreated_test_data = String::new();
+
+    while let Ok((i, cmd)) = parse_cmd_line(parse_subject) {
+        match cmd {
+            Command::Cd { name } => {
+                let recreated_cd_line = format!("$ cd {name}\n");
+                recreated_test_data.push_str(&recreated_cd_line);
+            }
+            Command::Ls { mut contents } => {
+                let recreated_ls_line = "$ ls\n".to_string();
+                recreated_test_data.push_str(&recreated_ls_line);
+
+                while let Ok((i, ls_entry)) = parse_ls_entry(contents) {
+                    println!("remaining:\n{contents}");
+                    let recreated_ls_entry = match ls_entry {
+                        LsEntry::File(File { name, size }) => {
+                            format!("{size} {name}\n")
+                        }
+                        LsEntry::Directory(name) => format!("dir {name}\n"),
+                    };
+                    recreated_test_data.push_str(&recreated_ls_entry);
+                    contents = i;
+                }
+            }
+        }
+        parse_subject = i;
+    }
+    assert_eq!(test_data, recreated_test_data);
 }

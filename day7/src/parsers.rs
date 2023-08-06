@@ -7,14 +7,32 @@ use nom::{
     IResult,
 };
 
-fn till_command_or_eof(i: &str) -> IResult<&str, &str> {
+#[derive(Debug)]
+pub enum Command<'a> {
+    Cd { name: &'a str },
+    Ls { contents: &'a str },
+}
+
+pub enum LsEntry<'a> {
+    File(File),
+    Directory(&'a str),
+}
+impl std::fmt::Debug for LsEntry<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::File(arg0) => write!(f, "file {} {}", arg0.name, arg0.size),
+            Self::Directory(arg0) => write!(f, "dir {arg0}"),
+        }
+    }
+}
+
+fn take_till_command_or_eof(i: &str) -> IResult<&str, &str> {
     alt((take_until("\n$"), take_while1(|_| true)))(i)
 }
 
-use super::Command;
 fn parse_ls(i: &str) -> IResult<&str, Command> {
-    let parse_contents = preceded(tag("ls\n"), till_command_or_eof);
-    map(parse_contents, |s| Command::Ls { contents: s })(i)
+    let parsed_contents = preceded(tag("ls\n"), take_till_command_or_eof);
+    map(parsed_contents, |s| Command::Ls { contents: s })(i)
 }
 
 fn parse_cd(i: &str) -> IResult<&str, Command> {
@@ -23,9 +41,9 @@ fn parse_cd(i: &str) -> IResult<&str, Command> {
     map(parse_dir, cmd)(i)
 }
 
-use super::{File, LsEntry};
+use super::File;
 
-fn till_newline_or_eof(i: &str) -> IResult<&str, &str> {
+fn take_till_newline_or_eof(i: &str) -> IResult<&str, &str> {
     alt((take_until("\n"), take_while1(|_| true)))(i)
 }
 fn parse_file_entry(i: &str) -> IResult<&str, LsEntry> {
@@ -35,7 +53,7 @@ fn parse_file_entry(i: &str) -> IResult<&str, LsEntry> {
             size: s.0.parse::<usize>().unwrap(),
         })
     };
-    let parse_file = separated_pair(digit1, char(' '), take_until("\n"));
+    let parse_file = separated_pair(digit1, char(' '), take_till_newline_or_eof);
     map(parse_file, file)(i)
 }
 fn parse_dir_entry<'a>(i: &'a str) -> IResult<&str, LsEntry<'a>> {
@@ -43,7 +61,7 @@ fn parse_dir_entry<'a>(i: &'a str) -> IResult<&str, LsEntry<'a>> {
     let parse_dir = separated_pair(
         tag("dir"),
         char(' '),
-        till_newline_or_eof, // alt((take_until("\n"), take_while1(|_| true))),
+        take_till_newline_or_eof, // alt((take_until("\n"), take_while1(|_| true))),
     );
     map(parse_dir, dir)(i)
 }
