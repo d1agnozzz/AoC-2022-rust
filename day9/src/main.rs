@@ -1,6 +1,7 @@
 use std::ops::RangeBounds;
 
 use derive_more::{Add, AddAssign, Mul, Sub};
+use num::Signed;
 
 #[cfg(test)]
 mod tests;
@@ -75,12 +76,13 @@ impl Rope {
         for _ in 0..distance.abs() {
             self.simulate_move_once(step);
         }
+        // self.simulate_move_once(head_move);
     }
     fn simulate_move_once(&mut self, head_move: MoveDirection) {
         // dbg!(head_move);
         self.move_head_once(head_move.into());
         // dbg!(self.head);
-        self.move_tail_once(self.tail_catching_move());
+        self.move_tail_once(Rope::tail_catching_move(&self.head, &self.tail));
         // dbg!(self.tail);
     }
     fn move_head_once(&mut self, move_vector: MoveVector) {
@@ -90,22 +92,39 @@ impl Rope {
         self.tail += move_vector.into();
         self.mark_tail_visit();
     }
-    fn tail_catching_move(&self) -> MoveVector {
-        let delta = self.head - self.tail;
+    fn tail_catching_move(head_position: &Position, tail_position: &Position) -> MoveVector {
+        let delta = *head_position - *tail_position;
         match delta {
             Position(-1..=1, -1..=1) => MoveVector(0, 0),
-            Position(-2..=2, -2..=2) => MoveVector::from(delta).normalize(),
-            // Position(mut x, mut y) => {
-            //     if x >= y {
-            //         x -= 1;
-            //     }
-            //     if y >= x {
-            //         y -= 1;
-            //     }
-            //
-            //     MoveVector::from((x, y))
-            // }
-            _ => panic!("tail is too far away, (dx, dy) = {}, {}", delta.0, delta.1),
+            // Position(-2..=2, -2..=2) => MoveVector::from(delta).normalize(),
+            // _ => panic!("tail is too far away, (dx, dy) = {}, {}", delta.0, delta.1),
+            Position(x, y) => {
+                use std::cmp::Ordering;
+
+                let (mut new_x, mut new_y) = (x, y);
+
+                // println!("before:");
+                // dbg!(x, y);
+
+                if x.abs() >= y.abs() {
+                    match x.cmp(&0) {
+                        Ordering::Greater => new_x -= 1,
+                        Ordering::Less => new_x += 1,
+                        Ordering::Equal => (),
+                    }
+                }
+                if y.abs() >= x.abs() {
+                    match y.cmp(&0) {
+                        Ordering::Greater => new_y -= 1,
+                        Ordering::Less => new_y += 1,
+                        Ordering::Equal => (),
+                    }
+                }
+                // println!("\tafter:");
+                // dbg!(new_x, new_y);
+
+                MoveVector::from((new_x, new_y))
+            }
         }
     }
     fn mark_tail_visit(&mut self) {
