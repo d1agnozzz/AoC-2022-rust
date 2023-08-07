@@ -1,7 +1,4 @@
-use std::ops::RangeBounds;
-
 use derive_more::{Add, AddAssign, Mul, Sub};
-use num::Signed;
 
 #[cfg(test)]
 mod tests;
@@ -23,18 +20,18 @@ impl From<MoveVector> for Position {
         Self(mvec.0, mvec.1)
     }
 }
-
-#[derive(Default)]
-struct Rope {
-    head: Position,
-    tail: Position,
-    tail_visited: std::collections::HashSet<Position>,
+impl Position {
+    fn move_with(&mut self, move_vector: MoveVector) {
+        *self += move_vector.into();
+    }
 }
+
 #[derive(Debug, Clone, Copy)]
 enum MoveDirection {
     Horizontal(isize),
     Vertical(isize),
 }
+
 #[derive(Debug, Default, PartialEq, Eq, Mul, Add, Sub, Hash, Clone, Copy)]
 struct MoveVector(isize, isize);
 
@@ -57,54 +54,59 @@ impl From<MoveDirection> for MoveVector {
     }
 }
 
-impl MoveVector {
-    fn normalize(&self) -> MoveVector {
-        use num::clamp;
-        MoveVector(clamp(self.0, -1, 1), clamp(self.1, -1, 1))
-    }
+use std::collections::HashSet;
+#[derive(Default)]
+struct Rope {
+    knots: Vec<Position>,
+    tail_visited: HashSet<Position>,
 }
+
 impl Rope {
-    fn new() -> Rope {
-        Rope::default()
+    fn new(knots_num: usize) -> Rope {
+        Rope {
+            knots: vec![Position::default(); knots_num],
+            tail_visited: HashSet::default(),
+        }
     }
     fn simulate_whole_move(&mut self, head_move: MoveDirection) {
         let (distance, step) = match head_move {
             MoveDirection::Horizontal(d) => (d, MoveDirection::Horizontal(num::clamp(d, -1, 1))),
             MoveDirection::Vertical(d) => (d, MoveDirection::Vertical(num::clamp(d, -1, 1))),
         };
-        // dbg!(distance, step);
         for _ in 0..distance.abs() {
-            self.simulate_move_once(step);
+            let tail_position_after_move = self.simulate_move_once(step);
+            self.mark_tail_visit(tail_position_after_move);
         }
-        // self.simulate_move_once(head_move);
     }
-    fn simulate_move_once(&mut self, head_move: MoveDirection) {
-        // dbg!(head_move);
-        self.move_head_once(head_move.into());
-        // dbg!(self.head);
-        self.move_tail_once(Rope::tail_catching_move(&self.head, &self.tail));
-        // dbg!(self.tail);
+
+    /// Returns position of the tale after move simulation
+    fn simulate_move_once(&mut self, head_move: MoveDirection) -> Position {
+        let head = self.knots.first_mut().expect("knots are missing");
+        head.move_with(head_move.into());
+
+        let knots_len = self.knots.len();
+
+        for i in 1..knots_len {
+            if let [head, tail] = &mut self.knots[i - 1..=i] {
+                tail.move_with(Rope::tail_catching_move(head, tail));
+                if i == knots_len - 1 {
+                    return *tail;
+                }
+            }
+        }
+        unreachable!();
     }
-    fn move_head_once(&mut self, move_vector: MoveVector) {
-        self.head += move_vector.into();
-    }
-    fn move_tail_once(&mut self, move_vector: MoveVector) {
-        self.tail += move_vector.into();
-        self.mark_tail_visit();
-    }
+
+    /// Rope associated function, which returns `MoveVector` appropriate for catching heading
+    /// knot
     fn tail_catching_move(head_position: &Position, tail_position: &Position) -> MoveVector {
         let delta = *head_position - *tail_position;
         match delta {
             Position(-1..=1, -1..=1) => MoveVector(0, 0),
-            // Position(-2..=2, -2..=2) => MoveVector::from(delta).normalize(),
-            // _ => panic!("tail is too far away, (dx, dy) = {}, {}", delta.0, delta.1),
             Position(x, y) => {
                 use std::cmp::Ordering;
 
                 let (mut new_x, mut new_y) = (x, y);
-
-                // println!("before:");
-                // dbg!(x, y);
 
                 if x.abs() >= y.abs() {
                     match x.cmp(&0) {
@@ -120,26 +122,26 @@ impl Rope {
                         Ordering::Equal => (),
                     }
                 }
-                // println!("\tafter:");
-                // dbg!(new_x, new_y);
 
                 MoveVector::from((new_x, new_y))
             }
         }
     }
-    fn mark_tail_visit(&mut self) {
-        self.tail_visited.insert(self.tail);
+    /// Add given `Position` to visited by tail position
+    fn mark_tail_visit(&mut self, position: Position) {
+        self.tail_visited.insert(position);
     }
 }
 
 fn main() {
     let input = include_str!("../input.txt");
 
-    let mut rope = Rope::new();
+    let mut rope_p1 = Rope::new(2);
+    let mut rope_p2 = Rope::new(10);
 
     for line in input.lines() {
         let [dir, dist] = line.split(' ').collect::<Vec<_>>()[..] else {
-            panic!("expected \"[direction] [distance]\", got: {}", line);
+            panic!("expected \"[direction] [distance]\", got: {line}", );
         };
 
         let dist = dist.parse::<isize>().expect("at distance parsing");
@@ -149,10 +151,12 @@ fn main() {
             "L" => MoveDirection::Horizontal(-dist),
             "U" => MoveDirection::Vertical(dist),
             "D" => MoveDirection::Vertical(-dist),
-            _ => panic!("moves only U/D/L/R, got: {}", dir),
+            _ => panic!("moves only U/D/L/R, got: {dir}"),
         };
 
-        rope.simulate_whole_move(move_direction);
+        rope_p1.simulate_whole_move(move_direction);
+        rope_p2.simulate_whole_move(move_direction);
     }
-    println!("Answer p1: {}", rope.tail_visited.len());
+    println!("Answer p1: {}", rope_p1.tail_visited.len());
+    println!("Answer p2: {}", rope_p2.tail_visited.len());
 }
